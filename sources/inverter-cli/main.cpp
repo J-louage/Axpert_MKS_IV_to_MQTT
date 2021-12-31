@@ -157,6 +157,10 @@ int main(int argc, char* argv[]) {
     int out_mode;
     float batt_redischarge_voltage;
 
+    int mask_b;
+    int mask_c;
+    int parallel_max_num;
+
     // Get command flag settings from the arguments (if any)
     InputParser cmdArgs(argc, argv);
     const string &rawcmd = cmdArgs.getCmdOption("-r");
@@ -215,9 +219,76 @@ int main(int argc, char* argv[]) {
 
             if (reply1 && reply2 && warnings) {
 
+		//QPIGS (Current Values)
+		//
                 // Parse and display values
-                sscanf(reply1->c_str(), "%f %f %f %f %d %d %d %d %f %d %d %d %f %f %f %d %s", &voltage_grid, &freq_grid, &voltage_out, &freq_out, &load_va, &load_watt, &load_percent, &voltage_bus, &voltage_batt, &batt_charge_current, &batt_capacity, &temp_heatsink, &pv_input_current, &pv_input_voltage, &scc_voltage, &batt_discharge_current, &device_status);
-                sscanf(reply2->c_str(), "%f %f %f %f %f %d %d %f %f %f %f %f %d %d %d %d %d %d - %d %d %d %f", &grid_voltage_rating, &grid_current_rating, &out_voltage_rating, &out_freq_rating, &out_current_rating, &out_va_rating, &out_watt_rating, &batt_rating, &batt_recharge_voltage, &batt_under_voltage, &batt_bulk_voltage, &batt_float_voltage, &batt_type, &max_grid_charge_current, &max_charge_current, &in_voltage_range, &out_source_priority, &charger_source_priority, &machine_type, &topology, &out_mode, &batt_redischarge_voltage);
+		//0 Grid Volts: 209.7 -float
+		//1 Grid Frequency: 50.0 -float
+		//2 AC Output Volts: 230.1 -float
+		//3 AC Output Frequency: 49.9 -float
+		//4 AC Output Apparent Power: 0667 -float
+		//5 AC Output Active Power: 0550 -float
+		//6 Output Load Percent: 011 -float
+		//7 Bus Voltage: 361 -float
+		//8 Battery Voltage: 52.20 -float
+		//9 Battery Charging Current: 000 -float
+		//10 Battery Capacity: 061 -float
+		//11 Heat Sink Temperature: 0031 -float
+		//12 Solar Input Current: 00.0 -float
+		//13 Solar Input Voltage: 000.0 -float
+		//14 Battery voltage from scc: 00.00 -float
+		//15 Battery discharge current: 00011 -float
+		//16 ---Reserved U7, U6: 00 [0] [1]
+		//17 Scc Firmware Update: 0 //0 No - 1 Yes [2]
+		//18 Load On: 1 [3]
+		//19 Reserved U4: 0 [4]
+		//20 Charging Status: 000 //000 Not Charging - 101 AC Charging - 110 Solar Charging - 111 Solar and AC Charging [5][6][7]
+
+		// --16 device status --17 mask_b --18 mask_c --19 PV Active Power
+
+		//21 ---Reserved Y: 00
+		//22 ---Reserved Z: 00
+		//23 ---Reserved AA: 00000
+		//24 ---Reserved BB: 010
+
+
+		//QPIRI (Configuration Values)
+		//----------------------------
+		//0 grid rating voltage: 230.0
+		//1 grid rating current: 24.3
+		//2 ac output rating voltage: 230.0
+		//3 ac output rating frequency: 50.0
+		//4 ac output rating current: 24.3
+		//5 ac output rating apparent power: 5600
+		//6 ac output rating active power: 5600
+		//7 battery rating voltage: 48.0
+		//8 battery recharge voltage: 46.0
+		//9 battery under voltage: 44.8
+		//10 battery bulk voltage: 57.6
+		//11 battery float voltage: 57.6
+		//12 battery type: 3
+		//13 current max ac charging: 030
+		//14 current max charging current: 100
+		//15 input voltage range: 0
+		//16 output source priority: 2
+		//17 charger source priority: 2
+
+		//18 parallel max num: 9 -------
+
+		//19 machine type: 00
+		//20 topology: 0
+		//21 output mode: 0
+		//22 battery re discharge voltage: 52.0
+
+		//23 pv condition: 0
+		//24 pv power balance: 1
+		//000
+
+		//reply1: 000.0 00.0 230.0 50.0 0414 0372 007 399 53.50 019 048 0041 06.4 244.4 00.00 00000 00010010 00 00 01556 010
+		//reply2: 230.0 24.3 230.0 50.0 24.3 5600 5600 48.0 46.0 44.8 57.6 57.6 3 030 100 0 2 2 9 00 0 0 52.0 0 1 000
+
+                sscanf(reply1->c_str(), "%f %f %f %f %d %d %d %d %f %d %d %d %f %f %f %d %s %d %d %f", &voltage_grid, &freq_grid, &voltage_out, &freq_out, &load_va, &load_watt, &load_percent, &voltage_bus, &voltage_batt, &batt_charge_current, &batt_capacity, &temp_heatsink, &pv_input_current, &pv_input_voltage, &scc_voltage, &batt_discharge_current, &device_status, &mask_b, &mask_c, &pv_input_watts);
+                sscanf(reply2->c_str(), "%f %f %f %f %f %d %d %f %f %f %f %f %d %d %d %d %d %d %d %d %d %d %f", &grid_voltage_rating, &grid_current_rating, &out_voltage_rating, &out_freq_rating, &out_current_rating, &out_va_rating, &out_watt_rating, &batt_rating, &batt_recharge_voltage, &batt_under_voltage, &batt_bulk_voltage, &batt_float_voltage, &batt_type, &max_grid_charge_current, &max_charge_current, &in_voltage_range, &out_source_priority, &charger_source_priority, &parallel_max_num, &machine_type, &topology, &out_mode, &batt_redischarge_voltage);
 
                 // There appears to be a discrepancy in actual DMM measured current vs what the meter is
                 // telling me it's getting, so lets add a variable we can multiply/divide by to adjust if
@@ -225,6 +296,10 @@ int main(int argc, char* argv[]) {
                 if (debugFlag) {
                     printf("INVERTER: ampfactor from config is %.2f\n", ampfactor);
                     printf("INVERTER: wattfactor from config is %.2f\n", wattfactor);
+		    printf("Start REply\n");
+		    printf("reply1: %s\n", reply1->c_str());
+		    printf("reply2: %s\n", reply2->c_str());
+		    printf("End Reply\n");
                 }
 
                 pv_input_current = pv_input_current * ampfactor;
@@ -233,7 +308,7 @@ int main(int argc, char* argv[]) {
                 // current that is going out to the battery at battery voltage (NOT at PV voltage).  This
                 // would explain the larger discrepancy we saw before.
 
-                pv_input_watts = (scc_voltage * pv_input_current) * wattfactor;
+                //pv_input_watts = (scc_voltage * pv_input_current) * wattfactor;
 
                 // Calculate watt-hours generated per run interval period (given as program argument)
                 pv_input_watthour = pv_input_watts / (3600 / runinterval);
@@ -263,6 +338,13 @@ int main(int argc, char* argv[]) {
                 printf("  \"Battery_charge_current\":%d,\n", batt_charge_current);
                 printf("  \"Battery_discharge_current\":%d,\n", batt_discharge_current);
                 printf("  \"Load_status_on\":%c,\n", device_status[3]);
+		//New
+		printf("  \"Battery_charging\":%c,\n", device_status[5]);
+
+		printf("  \"mask_b\":%d,\n", mask_b);
+		printf("  \"mask_c\":%d,\n", mask_c);
+		printf("  \"parallel_max_num\":%d,\n", parallel_max_num);
+
                 printf("  \"SCC_charge_on\":%c,\n", device_status[6]);
                 printf("  \"AC_charge_on\":%c,\n", device_status[7]);
                 printf("  \"Battery_recharge_voltage\":%.1f,\n", batt_recharge_voltage);
